@@ -5,12 +5,12 @@
 ##################
 LOG_FILE_LOCATION="/home/$USER/testresultstrigger.log" #log file location.
 HTTP_TIMEOUT=120 #time out value used for HTTP requests, set in seconds.
-REMOTE_SERVER_IP=localhost
+REMOTE_SERVER_IP=localhost #the ip address or the hostname of the remote server.
 REQUEST_PAYLOAD="Oops!"
 RESPONSE="$(pwd)/out"
-ASSERTION_VALUE="HTTP/1.1 200 OK"
+ASSERTION_VALUE="HTTP/1.1 200 OK" #a string that is looked for in the service response to validate successful service invocation.
 MSG="Oops!"
-ENDPOINT="https://10.100.5.74:8243/testresultupdater"
+ENDPOINT="https://10.100.5.74:8243/testresultupdater" #the URL of the test result update service.
 
 ##################
 # Functions
