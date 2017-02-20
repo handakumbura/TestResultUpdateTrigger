@@ -11,3 +11,5 @@ RESPONSE | captures the name of a temporary file that gets created to assert the
 ASSERTION_VALUE | captures a string that is looked for in the service response to validate successful service invocation.
 MSG | a variable used to pass messages to logging function. 
 ENDPOINT | captures the URL of the test result update service.
+COMPONENTS_QPARAM | captures the generated project components list.
+COMPONENTS_OUT | captures the name of a temporary file that gets created while generating components list.

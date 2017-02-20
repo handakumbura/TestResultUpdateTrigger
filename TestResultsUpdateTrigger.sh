@@ -4,13 +4,15 @@
 # Global Variables
 ##################
 LOG_FILE_LOCATION="/home/$USER/testresultstrigger.log" #log file location.
-HTTP_TIMEOUT=120 #time out value used for HTTP requests, set in seconds.
+HTTP_TIMEOUT=120 #time out value used for HTTP requests, set in seconds. In the case of cURL this is the max time allowed for the complete operation.
 REMOTE_SERVER_IP=localhost #the ip address or the hostname of the remote server.
 REQUEST_PAYLOAD="Oops!"
-RESPONSE="$(pwd)/out"
+RESPONSE="$(pwd)/out" 
 ASSERTION_VALUE="HTTP/1.1 200 OK" #a string that is looked for in the service response to validate successful service invocation.
 MSG="Oops!"
 ENDPOINT="https://10.100.5.74:8243/testresultupdater" #the URL of the test result update service.
+COMPONENTS_QPARAM=""
+COMPONENTS_OUT="Oops!"
 
 ##################
 # Functions
@@ -21,6 +23,27 @@ logmessage()
  echo "$DATELOCAL : $MSG" >> "$LOG_FILE_LOCATION"
  return
 }
+
+# INPUT POM_ARTIFACTID POM_ARTIFACTID WORKSPACE  
+processprojectinfo()
+{
+ COMPONENTS=""
+ PACKAGE_NAME="org.wso2" #package name used to filter out irrelevant entries.
+ DELIMITER="-" #delimiter used to separate dependencies.
+ COMPONENTS_OUT="$(pwd)/$POM_ARTIFACTID$BUILD_NUMBER"
+
+ mvn -f $WORKSPACE/pom.xml -o dependency:list | grep "$PACKAGE_NAME" | cut -d] -f2- | sed 's/ //g' > "$COMPONENTS_OUT"
+
+ #generate query parameter
+ for LINE in $(< $COMPONENTS_OUT); do
+        COMPONENTS="$COMPONENTS$DELIMITER$LINE"
+ done
+
+ rm -r $COMPONENTS_OUT #cleanup.
+ echo $COMPONENTS
+ return
+}
+
 
 failover()
 {
@@ -46,6 +69,12 @@ fi
 
 if [ -z $BUILD_NUMBER ]; then
  MSG="Build number was not set as an environmental variable."
+ logmessage $MSG
+ exit 1;
+fi
+
+if [ -z $WORKSPACE ]; then
+ MSG="Workspace was not set as an environmental variable."
  logmessage $MSG
  exit 1;
 fi
@@ -77,9 +106,11 @@ logmessage $MSG
 # Invocation Logic
 ###################
 
+COMPONENTS_QPARAM="$(processprojectinfo $POM_ARTIFACTID $BUILD_NUMBER $WORKSPACE)"
+#WIP
 REQUEST_PAYLOAD="$BUILD_NUMBER/$POM_ARTIFACTID/$POM_VERSION"
 #Making HTTP request to the result update servlet.
-curl -X GET -k -i -f -m $HTTP_TIMEOUT -H "Accept: application/json" "$ENDPOINT/$REQUEST_PAYLOAD" > out
+curl -X GET -k -i -f -m $HTTP_TIMEOUT -H "Accept: application/json" "$ENDPOINT/$REQUEST_PAYLOAD" > "$RESPONSE"
 cat "$RESPONSE" | grep "$ASSERTION_VALUE"
 
 #Asserting HTTP response.
