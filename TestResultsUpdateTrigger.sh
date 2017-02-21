@@ -32,7 +32,14 @@ processprojectinfo()
  DELIMITER="-" #delimiter used to separate dependencies.
  COMPONENTS_OUT="$(pwd)/$POM_ARTIFACTID$BUILD_NUMBER"
 
- mvn -f $WORKSPACE/pom.xml -o dependency:list | grep "$PACKAGE_NAME" | cut -d] -f2- | sed 's/ //g' > "$COMPONENTS_OUT"
+ mvn -f $WORKSPACE/pom.xml -o dependency:list | ( [[ $? == 0 ]] && grep "$PACKAGE_NAME" ) | cut -d] -f2- | sed 's/ //g' > "$COMPONENTS_OUT"
+  
+ #asserting dependency command redirection.
+  if [ $? -gt 0 ]; then
+   MSG="Something went wrong while generating the project dependency list. Run command manually to diagnose."
+   logmessage MSG
+   exit 1
+  fi
 
  #generate query parameter
  for LINE in $(< $COMPONENTS_OUT); do
@@ -106,8 +113,14 @@ logmessage $MSG
 # Invocation Logic
 ###################
 
+MSG="Calling processprojectinfo function to generate the dependency list parameter."
+logmessage $MSG
 COMPONENTS_QPARAM="$(processprojectinfo $POM_ARTIFACTID $BUILD_NUMBER $WORKSPACE)"
+
+####
 #WIP
+####
+
 REQUEST_PAYLOAD="$BUILD_NUMBER/$POM_ARTIFACTID/$POM_VERSION"
 #Making HTTP request to the result update servlet.
 curl -X GET -k -i -f -m $HTTP_TIMEOUT -H "Accept: application/json" "$ENDPOINT/$REQUEST_PAYLOAD" > "$RESPONSE"
