@@ -5,12 +5,12 @@
 ##################
 LOG_FILE_LOCATION="/home/$USER/testresultstrigger.log" #log file location.
 HTTP_TIMEOUT=120 #time out value used for HTTP requests, set in seconds. In the case of cURL this is the max time allowed for the complete operation.
-REMOTE_SERVER_IP=localhost #the ip address or the hostname of the remote server.
+REMOTE_SERVER_IP=192.168.48.112 #the ip address or the hostname of the remote server.
 REQUEST_PAYLOAD="Oops!"
 RESPONSE="$(pwd)/out" 
-ASSERTION_VALUE="HTTP/1.1 200 OK" #a string that is looked for in the service response to validate successful service invocation.
+ASSERTION_VALUE="Successful" #a string that is looked for in the service response to validate successful service invocation.
 MSG="Oops!"
-ENDPOINT="https://10.100.5.74:8243/testresultupdater" #the URL of the test result update service.
+ENDPOINT="http://192.168.48.112:8080/test-results-manager/update" #the URL of the test result update service.
 COMPONENTS_QPARAM=""
 COMPONENTS_OUT="Oops!"
 
@@ -28,8 +28,8 @@ logmessage()
 processprojectinfo()
 {
  COMPONENTS=""
- PACKAGE_NAME="org.wso2" #package name used to filter out irrelevant entries.
- DELIMITER="-" #delimiter used to separate dependencies.
+ PACKAGE_NAME="org." #******package name used to filter out irrelevant entries.*****
+ DELIMITER="#" #******delimiter used to separate dependencies.******
  COMPONENTS_OUT="$(pwd)/$POM_ARTIFACTID$BUILD_NUMBER"
 
  mvn -f $WORKSPACE/pom.xml dependency:list | ( [[ $? == 0 ]] && grep "$PACKAGE_NAME" ) | cut -d] -f2- | sed 's/ //g' > "$COMPONENTS_OUT"
@@ -116,16 +116,17 @@ logmessage $MSG
 MSG="Calling processprojectinfo function to generate the dependency list parameter."
 logmessage $MSG
 COMPONENTS_QPARAM="$(processprojectinfo $POM_ARTIFACTID $BUILD_NUMBER $WORKSPACE)"
+echo $COMPONENTS_QPARAM
 MSG="Query parameter generated according to input parameters and filter parameter is - $COMPONENTS_QPARAM"
 logmessage $MSG
 
 ####
 #WIP
 ####
-
-REQUEST_PAYLOAD="$BUILD_NUMBER/$POM_ARTIFACTID/$POM_VERSION"
+TESTPLAN=resultManagerPlan01
+curl -X GET -v "$ENDPOINT?projectName=$POM_ARTIFACTID&testPlanName=$TESTPLAN&buildNo=$BUILD_NUMBER&components=$COMPONENTS_QPARAM" > "$RESPONSE"
 #Making HTTP request to the result update servlet.
-curl -X GET -k -i -f -m $HTTP_TIMEOUT -H "Accept: application/json" "$ENDPOINT/$REQUEST_PAYLOAD" > "$RESPONSE"
+#curl -X GET -v -f -m $HTTP_TIMEOUT "$ENDPOINT?projectName=$POM_ARTIFACTID&testPlanName=$TESTPLAN&buildNo=$BUILD_NUMBER&components=$COMPONENTS_QPARAM" # > "$RESPONSE"
 cat "$RESPONSE" | grep "$ASSERTION_VALUE"
 
 #Asserting HTTP response.
