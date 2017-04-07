@@ -28,9 +28,9 @@ logmessage()
 processprojectinfo()
 {
  COMPONENTS=""
- PACKAGE_NAME="org." #******package name used to filter out irrelevant entries.*****
+ PACKAGE_NAME="org.wso2" #******package name used to filter out irrelevant entries.*****
  DELIMITER="#" #******delimiter used to separate dependencies.******
- COMPONENTS_OUT="$(pwd)/$POM_ARTIFACTID$BUILD_NUMBER"
+ COMPONENTS_OUT="$(pwd)/$BUILD_NUMBER"
 
  mvn -f $WORKSPACE/pom.xml dependency:list | ( [[ $? == 0 ]] && grep "$PACKAGE_NAME" ) | cut -d] -f2- | sed 's/ //g' > "$COMPONENTS_OUT"
   
@@ -123,10 +123,10 @@ logmessage $MSG
 ####
 #WIP
 ####
-TESTPLAN=resultManagerPlan01
-curl -X GET -v "$ENDPOINT?projectName=$POM_ARTIFACTID&testPlanName=$TESTPLAN&buildNo=$BUILD_NUMBER&components=$COMPONENTS_QPARAM" > "$RESPONSE"
 #Making HTTP request to the result update servlet.
-#curl -X GET -v -f -m $HTTP_TIMEOUT "$ENDPOINT?projectName=$POM_ARTIFACTID&testPlanName=$TESTPLAN&buildNo=$BUILD_NUMBER&components=$COMPONENTS_QPARAM" # > "$RESPONSE"
+#TESTPLAN="DASC5 Test Plan"
+curl -X GET -v -G "$ENDPOINT" --data-urlencode "projectName=$POM_ARTIFACTID" --data-urlencode "testPlanName=$POM_VERSION" --data-urlencode "buildNo=$BUILD_NUMBER" --data "components=$COMPONENTS_QPARAM" > "$RESPONSE" 
+
 cat "$RESPONSE" | grep "$ASSERTION_VALUE"
 
 #Asserting HTTP response.
