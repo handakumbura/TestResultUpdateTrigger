@@ -29,7 +29,7 @@ processprojectinfo()
 {
  COMPONENTS=""
  PACKAGE_NAME="org.wso2" #******package name used to filter out irrelevant entries.*****
- DELIMITER="#" #******delimiter used to separate dependencies.******
+ DELIMITER="ZX78" #******delimiter used to separate dependencies.******
  COMPONENTS_OUT="$(pwd)/$BUILD_NUMBER"
 
  mvn -f $WORKSPACE/pom.xml dependency:list | ( [[ $? == 0 ]] && grep "$PACKAGE_NAME" ) | cut -d] -f2- | sed 's/ //g' > "$COMPONENTS_OUT"
