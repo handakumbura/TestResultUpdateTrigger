@@ -25,14 +25,14 @@ logmessage()
 }
 
 # INPUT POM_ARTIFACTID POM_ARTIFACTID WORKSPACE  
-processprojectinfo()
+processcomponentinfo()
 {
  COMPONENTS=""
- PACKAGE_NAME="org.wso2" #******package name used to filter out irrelevant entries.*****
+ PACKAGE_GREP_REGEX="^org.wso2" #******package name used to filter out irrelevant entries.*****
  DELIMITER="ZX78" #******delimiter used to separate dependencies.******
  COMPONENTS_OUT="$(pwd)/$BUILD_NUMBER"
 
- mvn -f $WORKSPACE/pom.xml dependency:list | ( [[ $? == 0 ]] && grep "$PACKAGE_NAME" ) | cut -d] -f2- | sed 's/ //g' > "$COMPONENTS_OUT"
+ mvn -f $WORKSPACE/pom.xml dependency:list |  cut -d] -f2- | sed 's/ //g' | grep -E "$PACKAGE_GREP_REGEX" > "$COMPONENTS_OUT"
   
  #asserting dependency command redirection.
   if [ $? -gt 0 ]; then
@@ -51,6 +51,17 @@ processprojectinfo()
  return
 }
 
+processprojectvariable()
+{
+python - <<END
+import os
+displayenvvar=os.environ['POM_DISPLAYNAME']
+delimeterposition=displayenvvar.find('-')
+productname=displayenvvar[:delimeterposition-1]
+print productname
+END
+return
+}
 
 failover()
 {
@@ -70,6 +81,12 @@ fi
 
 if [ -z $POM_VERSION ]; then
  MSG="POM version was not set as an environmental variable."
+ logmessage $MSG
+ exit 1;
+fi
+
+if [ -z $POM_DISPLAYNAME ]; then
+ MSG="POM display name was not set as an environmental variable."
  logmessage $MSG
  exit 1;
 fi
@@ -94,6 +111,14 @@ if [ $? -gt 0 ]; then
  exit 1;
 fi
 
+#check availability of cURL HTTP client.
+dpkg -s python &> /dev/null
+if [ $? -gt 0 ]; then
+ MSG="Python package was not found. Please install it on the system."
+ logmessage $MSG
+ exit 1;
+fi
+
 #check remote server availability.
 ping -q -c 2 -w $HTTP_TIMEOUT $REMOTE_SERVER_IP &> /dev/null
 if [ $? -gt 0 ]; then
@@ -113,19 +138,21 @@ logmessage $MSG
 # Invocation Logic
 ###################
 
-MSG="Calling processprojectinfo function to generate the dependency list parameter."
+MSG="Calling processcomponentinfo function to generate the dependency list parameter."
 logmessage $MSG
-COMPONENTS_QPARAM="$(processprojectinfo $POM_ARTIFACTID $BUILD_NUMBER $WORKSPACE)"
+COMPONENTS_QPARAM="$(processcomponentinfo $POM_ARTIFACTID $BUILD_NUMBER $WORKSPACE)"
 echo $COMPONENTS_QPARAM
 MSG="Query parameter generated according to input parameters and filter parameter is - $COMPONENTS_QPARAM"
 logmessage $MSG
 
-####
-#WIP
-####
+PROJECT_NAME="$(processprojectvariable)"
+TEST_PLAN="$(echo $PROJECT_NAME | cut -d2 -f2 | cut -c2-)"
+MSG="Project name and test plan values generated are - $PROJECT_NAME $TEST_PLAN"
+logmessage $MSG
+
 #Making HTTP request to the result update servlet.
 #TESTPLAN="DASC5 Test Plan"
-curl -X GET -v -G "$ENDPOINT" --data-urlencode "projectName=$POM_ARTIFACTID" --data-urlencode "testPlanName=$POM_VERSION" --data-urlencode "buildNo=$BUILD_NUMBER" --data "components=$COMPONENTS_QPARAM" > "$RESPONSE" 
+curl -X GET -v -G "$ENDPOINT" --data-urlencode "projectName=$PROJECT_NAME" --data-urlencode "testPlanName=$TEST_PLAN" --data-urlencode "buildNo=$BUILD_NUMBER" --data "components=$COMPONENTS_QPARAM" > "$RESPONSE" 
 
 cat "$RESPONSE" | grep "$ASSERTION_VALUE"
 
@@ -133,11 +160,11 @@ cat "$RESPONSE" | grep "$ASSERTION_VALUE"
 if [ $? -gt 0 ]; then
  MSG="Response assertion failed. The response is availble at $RESPONSE"
  logmessage $MSG
- exit 1
+ exit 0
 fi
 rm -r "$RESPONSE"
 
 #Exiting script.
-MSG="Test Result Update service was invoked with the project values. Script run successful."
+MSG="Test Result Update service was invoked with the project values. Script run successful, find the execution log at $LOG_FILE_LOCATION"
 logmessage $MSG
 exit 0
